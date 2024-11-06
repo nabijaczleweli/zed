@@ -168,12 +168,6 @@ impl QuickActionBar {
                         },
                     )
                     .separator()
-                    .link(
-                        "Change Kernel",
-                        Box::new(zed_actions::OpenBrowser {
-                            url: format!("{}#change-kernel", ZED_REPL_DOCUMENTATION),
-                        }),
-                    )
                     .custom_entry(
                         move |_cx| {
                             Label::new("Shut Down Kernel")
@@ -307,34 +301,26 @@ impl QuickActionBar {
             ButtonLike::new("kernel-selector")
                 .style(ButtonStyle::Subtle)
                 .child(
-                    h_flex()
-                        .w_full()
-                        .gap_0p5()
-                        .child(
-                            div()
-                                .overflow_x_hidden()
-                                .flex_grow()
-                                .whitespace_nowrap()
-                                .child(
-                                    Label::new(if let Some(name) = current_kernel_name {
-                                        name
-                                    } else {
-                                        SharedString::from("Select Kernel")
-                                    })
-                                    .size(LabelSize::Small)
-                                    .color(if current_kernelspec.is_some() {
-                                        Color::Default
-                                    } else {
-                                        Color::Placeholder
-                                    })
-                                    .into_any_element(),
-                                ),
-                        )
-                        .child(
-                            Icon::new(IconName::ChevronDown)
-                                .color(Color::Muted)
-                                .size(IconSize::XSmall),
-                        ),
+                    h_flex().w_full().gap_0p5().child(
+                        div()
+                            .overflow_x_hidden()
+                            .flex_grow()
+                            .whitespace_nowrap()
+                            .child(
+                                Label::new(if let Some(name) = current_kernel_name {
+                                    name
+                                } else {
+                                    SharedString::from("Select Kernel")
+                                })
+                                .size(LabelSize::Small)
+                                .color(if current_kernelspec.is_some() {
+                                    Color::Default
+                                } else {
+                                    Color::Placeholder
+                                })
+                                .into_any_element(),
+                            ),
+                    ),
                 )
                 .tooltip(move |cx| Tooltip::text("Select Kernel", cx)),
         )
