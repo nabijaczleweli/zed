@@ -130,7 +130,7 @@ impl PickerDelegate for KernelPickerDelegate {
                 .spacing(ListItemSpacing::Sparse)
                 .selected(selected)
                 .child(
-                    h_flex().w_full().justify_between().min_w(px(200.)).child(
+                    h_flex().w_full().justify_between().min_w(px(400.)).child(
                         h_flex()
                             .gap_1p5()
                             .child(Label::new(kernelspec.name()))
