@@ -7123,7 +7123,7 @@ impl Editor {
                 tab_size,
             );
 
-            let diff = TextDiff::from_lines(&selection_text, &wrapped_text);
+            let diff = TextDiff::from_chars(&selection_text, &wrapped_text);
             let mut offset = start.to_offset(&buffer);
             let mut moved_since_edit = true;
 
