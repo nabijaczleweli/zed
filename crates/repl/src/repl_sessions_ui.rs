@@ -277,18 +277,11 @@ impl Render for ReplSessionsPage {
                     ),
             )
             .children(sorted_kernels.into_iter().map(|(language, specs)| {
-                let chosen_kernel = store.read(cx).kernelspec(&language, cx);
 
                 v_flex()
                     .gap_1()
                     .child(Label::new(language.clone()).weight(FontWeight::BOLD))
                     .children(specs.into_iter().map(|spec| {
-                        let is_choice = if let Some(chosen_kernel) = &chosen_kernel {
-                            chosen_kernel == spec
-                        } else {
-                            false
-                        };
-
                         let path = spec.path();
 
                         ListItem::new(path.clone())
@@ -300,14 +293,7 @@ impl Render for ReplSessionsPage {
                                 h_flex()
                                     .gap_1()
                                     .child(div().id(path.clone()).child(Label::new(spec.name())))
-                                    .when(is_choice, |el| {
 
-                                        let language = language.clone();
-
-                                        el.child(
-
-                                        div().id("check").tooltip(move |cx| Tooltip::text(format!("Default Kernel for {language}"), cx))
-                                            .child(Icon::new(IconName::Check)))}),
                             )
 
                     }))
