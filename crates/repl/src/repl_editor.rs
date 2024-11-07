@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use editor::Editor;
 use gpui::{prelude::*, Entity, View, WeakView, WindowContext};
 use language::{BufferSnapshot, Language, LanguageName, Point};
+use workspace::Workspace;
 
 use crate::repl_store::ReplStore;
 use crate::session::SessionEvent;
@@ -69,6 +70,8 @@ pub fn run(editor: WeakView<Editor>, move_down: bool, cx: &mut WindowContext) ->
     }
 
     let editor = editor.upgrade().context("editor was dropped")?;
+    let workspace = editor.read(cx).workspace();
+
     let selected_range = editor
         .update(cx, |editor, cx| editor.selections.newest_adjusted(cx))
         .range();
@@ -166,6 +169,8 @@ pub fn session(editor: WeakView<Editor>, cx: &mut WindowContext) -> SessionSuppo
         return SessionSupport::Unsupported;
     };
     let kernelspec = store.update(cx, |store, cx| {
+        // todo
+        // This now should be using... something else
         store.kernelspec(language.code_fence_block_name().as_ref(), cx)
     });
 

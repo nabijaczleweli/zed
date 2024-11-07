@@ -73,6 +73,7 @@ impl QuickActionBar {
         let id = "repl-menu".to_string();
 
         let element_id = |suffix| ElementId::Name(format!("{}-{}", id, suffix).into());
+        let workspace = self.workspace.clone();
 
         let editor = editor.downgrade();
         let dropdown_menu = PopoverMenu::new(element_id("menu"))

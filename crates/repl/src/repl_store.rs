@@ -4,8 +4,10 @@ use anyhow::Result;
 use client::telemetry::Telemetry;
 use collections::HashMap;
 use command_palette_hooks::CommandPaletteFilter;
+use editor::Editor;
 use gpui::{
     prelude::*, AppContext, EntityId, Global, Model, ModelContext, Subscription, Task, View,
+    WeakView,
 };
 use project::Fs;
 use settings::{Settings, SettingsStore};
@@ -33,7 +35,7 @@ impl ReplStore {
         let store = cx.new_model(move |cx| Self::new(fs, telemetry, cx));
 
         store
-            .update(cx, |store, cx| store.refresh_kernelspecs(cx))
+            .update(cx, |store, cx| store.refresh_kernelspecs(None, cx))
             .detach_and_log_err(cx);
 
         cx.set_global(GlobalReplStore(store))
@@ -105,15 +107,17 @@ impl ReplStore {
         cx.notify();
     }
 
-    pub fn refresh_kernelspecs(&mut self, cx: &mut ModelContext<Self>) -> Task<Result<()>> {
+    pub fn refresh_kernelspecs(
+        &mut self,
+        editor: Option<WeakView<Editor>>,
+        cx: &mut ModelContext<Self>,
+    ) -> Task<Result<()>> {
         let local_kernel_specifications = local_kernel_specifications(self.fs.clone());
+
         cx.spawn(|this, mut cx| async move {
             let local_kernel_specifications = local_kernel_specifications.await?;
 
-            let mut kernel_options = Vec::new();
-            for kernel_specification in local_kernel_specifications {
-                kernel_options.push(KernelSpecification::Jupyter(kernel_specification));
-            }
+            let kernel_options = local_kernel_specifications;
 
             this.update(&mut cx, |this, cx| {
                 this.kernel_specifications = kernel_options;

@@ -16,6 +16,7 @@ use smol::{net::TcpListener, process::Command};
 use std::{
     env,
     fmt::Debug,
+    future::Future,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
     sync::Arc,
@@ -469,87 +470,91 @@ async fn read_kernels_dir(path: PathBuf, fs: &dyn Fs) -> Result<Vec<LocalKernelS
 // todo: write a function that will gather python env kernel specs and jupyter local kernel specs
 //       that accepts an Option<WorktreeId> to determine if we're getting python toolchain support
 
-pub async fn python_env_kernel_specifications(
+pub fn python_env_kernel_specifications(
     project: Model<Project>,
     worktree_id: WorktreeId,
     cx: &mut AppContext,
-) -> Result<Vec<KernelSpecification>> {
-    let fs = project.read(cx).fs();
+) -> impl Future<Output = Result<Vec<KernelSpecification>>> {
+    let fs = project.read(cx).fs().clone();
     let python_language = LanguageName::new("Python");
+
     let toolchains = project
         .read(cx)
-        .available_toolchains(worktree_id, python_language, cx)
-        .await;
+        .available_toolchains(worktree_id, python_language, cx);
 
-    let toolchains = if let Some(toolchains) = toolchains {
-        toolchains
-    } else {
-        dbg!("No toolchains found");
-        return Ok(Vec::new());
-    };
+    async move {
+        let toolchains = toolchains.await;
 
-    let mut kernel_specs = Vec::new();
+        let toolchains = if let Some(toolchains) = toolchains {
+            toolchains
+        } else {
+            dbg!("No toolchains found");
+            return Ok(Vec::new());
+        };
 
-    for toolchain in toolchains.toolchains {
-        dbg!(&toolchain);
-        let prefix = PathBuf::from(toolchain.path.to_string());
-        let kernel_dir = prefix.join("share").join("jupyter").join("kernels");
+        let mut kernel_specs = Vec::new();
 
-        if fs.is_dir(&kernel_dir).await {
-            let mut kernelspec_dirs = fs.read_dir(&kernel_dir).await?;
+        for toolchain in toolchains.toolchains {
+            dbg!(&toolchain);
+            let prefix = PathBuf::from(toolchain.path.to_string());
+            let kernel_dir = prefix.join("share").join("jupyter").join("kernels");
 
-            while let Some(path) = kernelspec_dirs.next().await {
-                if let Ok(path) = path {
-                    if fs.is_dir(path.as_path()).await {
-                        if let Ok(kernelspec) = read_kernelspec_at(path, fs.as_ref()).await {
-                            kernel_specs.push(KernelSpecification::PythonEnv(
-                                LocalKernelSpecification {
-                                    name: format!("{} ({})", kernelspec.name, toolchain.name),
-                                    path: kernelspec.path,
-                                    kernelspec: kernelspec.kernelspec,
-                                },
-                            ));
+            if fs.is_dir(&kernel_dir).await {
+                let mut kernelspec_dirs = fs.read_dir(&kernel_dir).await?;
+
+                while let Some(path) = kernelspec_dirs.next().await {
+                    if let Ok(path) = path {
+                        if fs.is_dir(path.as_path()).await {
+                            if let Ok(kernelspec) = read_kernelspec_at(path, fs.as_ref()).await {
+                                kernel_specs.push(KernelSpecification::PythonEnv(
+                                    LocalKernelSpecification {
+                                        name: format!("{} ({})", kernelspec.name, toolchain.name),
+                                        path: kernelspec.path,
+                                        kernelspec: kernelspec.kernelspec,
+                                    },
+                                ));
+                            }
                         }
                     }
                 }
             }
+
+            // Check if ipykernel is installed
+            let ipykernel_check = Command::new(toolchain.path.to_string())
+                .args(&["-c", "import ipykernel"])
+                .output()
+                .await;
+
+            if ipykernel_check.is_ok() && ipykernel_check.unwrap().status.success() {
+                // Create a default kernelspec for this environment
+                let default_kernelspec = JupyterKernelspec {
+                    argv: vec![
+                        toolchain.path.to_string(),
+                        "-m".to_string(),
+                        "ipykernel_launcher".to_string(),
+                        "-f".to_string(),
+                        "{connection_file}".to_string(),
+                    ],
+                    display_name: format!("Python ({})", toolchain.name),
+                    language: "python".to_string(),
+                    interrupt_mode: None,
+                    metadata: None,
+                    env: None,
+                };
+
+                kernel_specs.push(KernelSpecification::PythonEnv(LocalKernelSpecification {
+                    name: format!("Python ({})", toolchain.name),
+                    path: prefix,
+                    kernelspec: default_kernelspec,
+                }));
+            }
         }
 
-        // Check if ipykernel is installed
-        let ipykernel_check = Command::new(toolchain.path.to_string())
-            .args(&["-c", "import ipykernel"])
-            .output()
-            .await;
-
-        if ipykernel_check.is_ok() && ipykernel_check.unwrap().status.success() {
-            // Create a default kernelspec for this environment
-            let default_kernelspec = JupyterKernelspec {
-                argv: vec![
-                    toolchain.path.to_string(),
-                    "-m".to_string(),
-                    "ipykernel_launcher".to_string(),
-                    "-f".to_string(),
-                    "{connection_file}".to_string(),
-                ],
-                display_name: format!("Python ({})", toolchain.name),
-                language: "python".to_string(),
-                interrupt_mode: None,
-                metadata: None,
-                env: None,
-            };
-
-            kernel_specs.push(KernelSpecification::PythonEnv(LocalKernelSpecification {
-                name: format!("Python ({})", toolchain.name),
-                path: prefix,
-                kernelspec: default_kernelspec,
-            }));
-        }
+        Ok(kernel_specs)
     }
-
-    Ok(kernel_specs)
 }
 
-pub async fn local_kernel_specifications(fs: Arc<dyn Fs>) -> Result<Vec<LocalKernelSpecification>> {
+pub async fn local_kernel_specifications(fs: Arc<dyn Fs>) -> Result<Vec<KernelSpecification>> {
     let mut data_dirs = dirs::data_dirs();
 
     // Pick up any kernels from conda or conda environment
@@ -590,13 +595,14 @@ pub async fn local_kernel_specifications(fs: Arc<dyn Fs>) -> Result<Vec<LocalKer
         .collect::<Vec<_>>();
 
     let kernel_dirs = futures::future::join_all(kernel_dirs).await;
-    let kernel_dirs = kernel_dirs
+    let kernel_specs = kernel_dirs
         .into_iter()
         .filter_map(Result::ok)
         .flatten()
+        .map(|ks| KernelSpecification::Jupyter(ks))
         .collect::<Vec<_>>();
 
-    Ok(kernel_dirs)
+    Ok(kernel_specs)
 }
 
 #[cfg(test)]

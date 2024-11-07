@@ -49,7 +49,7 @@ pub fn init(cx: &mut AppContext) {
             workspace.register_action(|_workspace, _: &RefreshKernelspecs, cx| {
                 let store = ReplStore::global(cx);
                 store.update(cx, |store, cx| {
-                    store.refresh_kernelspecs(cx).detach();
+                    store.refresh_kernelspecs(None, cx).detach();
                 });
             });
         },
