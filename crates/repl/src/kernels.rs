@@ -1,11 +1,12 @@
 use anyhow::{Context as _, Result};
+use editor::Editor;
 use futures::{
     channel::mpsc::{self, Receiver},
     future::Shared,
     stream::{self, SelectAll, StreamExt},
-    SinkExt as _,
+    FutureExt as _, SinkExt as _,
 };
-use gpui::{AppContext, EntityId, Model, Task};
+use gpui::{AppContext, EntityId, Model, Task, WeakView};
 use language::LanguageName;
 use project::{Fs, Project, WorktreeId};
 use runtimelib::{
@@ -23,6 +24,7 @@ use std::{
 };
 use ui::SharedString;
 use uuid::Uuid;
+use workspace::ItemHandle as _;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KernelSpecification {
@@ -469,9 +471,42 @@ async fn read_kernels_dir(path: PathBuf, fs: &dyn Fs) -> Result<Vec<LocalKernelS
 
 // todo: write a function that will gather python env kernel specs and jupyter local kernel specs
 //       that accepts an Option<WorktreeId> to determine if we're getting python toolchain support
+//
+
+pub fn kernelspecs_for_editor(
+    editor: Option<WeakView<Editor>>,
+    cx: &mut AppContext,
+) -> impl Future<Output = Result<Vec<KernelSpecification>>> {
+    let result = editor
+        .map(|editor| {
+            let editor = editor.upgrade()?;
+            let worktree_id = editor
+                .project_path(cx)
+                .map(|project_path| project_path.worktree_id.clone())?;
+            let editor = editor.read(cx);
+            let workspace = editor.workspace()?;
+
+            let project = workspace.read(cx).project().clone();
+
+            Some(python_env_kernel_specifications(
+                &project,
+                worktree_id.clone(),
+                cx,
+            ))
+        })
+        .flatten();
+
+    async move {
+        if let Some(result) = result {
+            result.await
+        } else {
+            anyhow::bail!("No worktree and project")
+        }
+    }
+}
 
 pub fn python_env_kernel_specifications(
-    project: Model<Project>,
+    project: &Model<Project>,
     worktree_id: WorktreeId,
     cx: &mut AppContext,
 ) -> impl Future<Output = Result<Vec<KernelSpecification>>> {
@@ -550,7 +585,7 @@ pub fn python_env_kernel_specifications(
             }
         }
 
-        Ok(kernel_specs)
+        anyhow::Ok(kernel_specs)
     }
 }
 

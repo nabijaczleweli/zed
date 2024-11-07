@@ -11,8 +11,9 @@ use gpui::{
 };
 use project::Fs;
 use settings::{Settings, SettingsStore};
+use workspace::ItemHandle as _;
 
-use crate::kernels::local_kernel_specifications;
+use crate::kernels::{kernelspecs_for_editor, local_kernel_specifications};
 use crate::{JupyterSettings, KernelSpecification, Session};
 
 struct GlobalReplStore(Model<ReplStore>);
@@ -113,6 +114,8 @@ impl ReplStore {
         cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         let local_kernel_specifications = local_kernel_specifications(self.fs.clone());
+
+        let ks = kernelspecs_for_editor(editor, cx);
 
         cx.spawn(|this, mut cx| async move {
             let local_kernel_specifications = local_kernel_specifications.await?;

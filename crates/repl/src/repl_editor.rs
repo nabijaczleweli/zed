@@ -7,7 +7,6 @@ use anyhow::{Context, Result};
 use editor::Editor;
 use gpui::{prelude::*, Entity, View, WeakView, WindowContext};
 use language::{BufferSnapshot, Language, LanguageName, Point};
-use workspace::Workspace;
 
 use crate::repl_store::ReplStore;
 use crate::session::SessionEvent;
@@ -70,7 +69,6 @@ pub fn run(editor: WeakView<Editor>, move_down: bool, cx: &mut WindowContext) ->
     }
 
     let editor = editor.upgrade().context("editor was dropped")?;
-    let workspace = editor.read(cx).workspace();
 
     let selected_range = editor
         .update(cx, |editor, cx| editor.selections.newest_adjusted(cx))
