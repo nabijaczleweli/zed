@@ -477,7 +477,7 @@ impl X11Client {
                     Ok(Some(event)) => {
                         match event {
                             Event::Expose(expose_event) => {
-                                windows_to_refresh.insert(expose_event.window);
+                                windows_to_refresh.insert(dbg!(expose_event).window);
                             }
                             Event::KeyRelease(_) => {
                                 last_key_release = Some(event);
