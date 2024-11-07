@@ -115,12 +115,23 @@ impl ReplStore {
     ) -> Task<Result<()>> {
         let local_kernel_specifications = local_kernel_specifications(self.fs.clone());
 
-        let ks = kernelspecs_for_editor(editor, cx);
+        let ks = kernelspecs_for_editor(editor.clone(), cx);
+        dbg!();
 
         cx.spawn(|this, mut cx| async move {
-            let local_kernel_specifications = local_kernel_specifications.await?;
+            let local_kernel_specifications = local_kernel_specifications.await.ok();
+            let kernelspecs = ks.await.ok();
 
-            let kernel_options = local_kernel_specifications;
+            let kernel_options = match (local_kernel_specifications, kernelspecs) {
+                (Some(local), Some(editor)) => {
+                    let mut combined = local;
+                    combined.extend(editor);
+                    combined
+                }
+                (Some(local), None) => local,
+                (None, Some(editor)) => editor,
+                (None, None) => Vec::new(),
+            };
 
             this.update(&mut cx, |this, cx| {
                 this.kernel_specifications = kernel_options;

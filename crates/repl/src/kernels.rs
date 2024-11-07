@@ -469,10 +469,6 @@ async fn read_kernels_dir(path: PathBuf, fs: &dyn Fs) -> Result<Vec<LocalKernelS
     Ok(valid_kernelspecs)
 }
 
-// todo: write a function that will gather python env kernel specs and jupyter local kernel specs
-//       that accepts an Option<WorktreeId> to determine if we're getting python toolchain support
-//
-
 pub fn kernelspecs_for_editor(
     editor: Option<WeakView<Editor>>,
     cx: &mut AppContext,
