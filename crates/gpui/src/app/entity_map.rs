@@ -117,7 +117,9 @@ impl EntityMap {
 
     pub fn read<T: 'static>(&self, model: &Model<T>) -> &T {
         self.assert_valid_context(model);
-        self.entities[model.entity_id]
+        let entity = &self.entities[model.entity_id];
+
+        entity
             .downcast_ref()
             .unwrap_or_else(|| double_lease_panic::<T>("read"))
     }

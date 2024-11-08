@@ -57,6 +57,10 @@ pub fn init(cx: &mut AppContext) {
     .detach();
 
     cx.observe_new_views(move |editor: &mut Editor, cx: &mut ViewContext<Editor>| {
+        if !editor.use_modal_editing() || !editor.buffer().read(cx).is_singleton() {
+            return;
+        }
+
         let editor_handle = cx.view().downgrade();
 
         let store = ReplStore::global(cx);
@@ -65,10 +69,6 @@ pub fn init(cx: &mut AppContext) {
                 .refresh_kernelspecs(Some(editor_handle.clone()), cx)
                 .detach();
         });
-
-        if !editor.use_modal_editing() || !editor.buffer().read(cx).is_singleton() {
-            return;
-        }
 
         editor
             .register_action({

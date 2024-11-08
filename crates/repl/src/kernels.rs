@@ -6,7 +6,7 @@ use futures::{
     stream::{self, SelectAll, StreamExt},
     FutureExt as _, SinkExt as _,
 };
-use gpui::{AppContext, EntityId, Model, Task, WeakView};
+use gpui::{AppContext, EntityId, Model, Task, WeakView, WindowContext};
 use language::LanguageName;
 use project::{Fs, Project, WorktreeId};
 use runtimelib::{
@@ -24,7 +24,7 @@ use std::{
 };
 use ui::SharedString;
 use uuid::Uuid;
-use workspace::ItemHandle as _;
+use workspace::{ItemHandle as _, Workspace};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KernelSpecification {
@@ -471,16 +471,15 @@ async fn read_kernels_dir(path: PathBuf, fs: &dyn Fs) -> Result<Vec<LocalKernelS
 
 pub fn kernelspecs_for_editor(
     editor: Option<WeakView<Editor>>,
-    cx: &mut AppContext,
+    cx: &mut WindowContext,
 ) -> impl Future<Output = Result<Vec<KernelSpecification>>> {
     let result = editor
         .map(|editor| {
             let editor = editor.upgrade()?;
-            let worktree_id = editor
-                .project_path(cx)
+            let workspace = editor.update(cx, |_, cx| Workspace::for_window(cx));
+            let worktree_id = dbg!(editor.project_path(cx))
                 .map(|project_path| project_path.worktree_id.clone())?;
             let editor = editor.read(cx);
-            let workspace = editor.workspace()?;
 
             let project = workspace.read(cx).project().clone();
 

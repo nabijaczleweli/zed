@@ -111,16 +111,19 @@ impl ReplStore {
     pub fn refresh_kernelspecs(
         &mut self,
         editor: Option<WeakView<Editor>>,
+
         cx: &mut ModelContext<Self>,
     ) -> Task<Result<()>> {
         let local_kernel_specifications = local_kernel_specifications(self.fs.clone());
 
-        let ks = kernelspecs_for_editor(editor.clone(), cx);
-        dbg!();
-
         cx.spawn(|this, mut cx| async move {
+            let ks = cx.update(|cx| kernelspecs_for_editor(editor.clone(), cx))?;
+            dbg!();
+
             let local_kernel_specifications = local_kernel_specifications.await.ok();
             let kernelspecs = ks.await.ok();
+
+            dbg!();
 
             let kernel_options = match (local_kernel_specifications, kernelspecs) {
                 (Some(local), Some(editor)) => {

@@ -93,7 +93,7 @@ use theme::{ActiveTheme, SystemAppearance, ThemeSettings};
 pub use toolbar::{Toolbar, ToolbarItemEvent, ToolbarItemLocation, ToolbarItemView};
 pub use ui;
 use ui::{
-    div, h_flex, px, BorrowAppContext, Context as _, Div, FluentBuilder, InteractiveElement as _,
+    div, h_flex, px, BorrowAppContext, Context, Div, FluentBuilder, InteractiveElement as _,
     IntoElement, ParentElement as _, Pixels, SharedString, Styled as _, ViewContext,
     VisualContext as _, WindowContext,
 };
@@ -4539,6 +4539,11 @@ impl Workspace {
                 .child(dock.clone())
                 .children(leader_border),
         )
+    }
+
+    pub fn for_window(cx: &mut WindowContext) -> Option<View<Workspace>> {
+        let window = cx.window_handle().downcast::<Workspace>()?;
+        cx.read_window(&window, |workspace, _| workspace).ok()
     }
 }
 
