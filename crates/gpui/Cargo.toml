@@ -119,7 +119,7 @@ http_client = { workspace = true, features = ["test-support"] }
 unicode-segmentation.workspace = true
 
 [build-dependencies]
-embed-resource = "2.4"
+embed-resource = { git = "https://github.com/nabijaczleweli/rust-embed-resource", branch = "v2.5-stable" }
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
 bindgen = "0.70.0"
